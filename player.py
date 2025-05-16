@@ -6,6 +6,7 @@ class Player(CircleShape):
     def __init__(self, x, y):
         super().__init__(x, y, PLAYER_RADIUS)
         self.rotation = 0
+        self.space_pressed = False
 
     def triangle(self):
         forward = pygame.Vector2(0, 1).rotate(self.rotation)
@@ -28,8 +29,13 @@ class Player(CircleShape):
             self.move(-dt)
         if keys[pygame.K_w]:
             self.move(dt)
+   
         if keys[pygame.K_SPACE]:
-            self.shoot()
+            if not self.space_pressed:  # Si la touche n'était pas déjà pressée
+                self.shoot()
+                self.space_pressed = True  # Marquer comme pressée
+        else:
+            self.space_pressed = False 
         
             
 
