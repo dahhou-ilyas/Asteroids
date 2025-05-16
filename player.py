@@ -28,8 +28,7 @@ class Player(CircleShape):
             self.move(-dt)
         if keys[pygame.K_w]:
             self.move(dt)
-        if keys[pygame.K_c]:
-            print()
+        if keys[pygame.K_SPACE]:
             self.shoot()
         
             
