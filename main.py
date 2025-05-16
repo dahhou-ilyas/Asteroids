@@ -62,3 +62,5 @@ if __name__ == "__main__":
 # Exemple :
 # Si speed = 200 (pixels/seconde) et dt = 0.016 (≈ 60 FPS),
 # alors le déplacement sera 200 * 0.016 = 3.2 pixels sur cette frame.
+
+# comment on peut crée un mode multiplayer qui permet de deux player de player dans un single gameplay donc comment faire (je besoin de travaillé avec socket with go et socket en create my own protocol)
