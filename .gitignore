@@ -1,2 +1,13 @@
-venv/
+# Python
 __pycache__/
+*.pyc
+venv/
+
+# Go
+bin/
+*.exe
+*.out
+*.test
+
+server/.idea/
+*.iml
