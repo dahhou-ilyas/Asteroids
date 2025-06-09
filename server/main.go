@@ -1,5 +1,6 @@
 package main
 
+/*
 import (
 	"bufio"
 	"encoding/json"
@@ -600,3 +601,4 @@ func main() {
 		log.Fatalf("Erreur démarrage serveur: %v", err)
 	}
 }
+*/
