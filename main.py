@@ -5,9 +5,27 @@ from asteroid import Asteroid
 from asteroidfield import AsteroidField
 from shot import Shot
 import sys
+from socketserverconfig import connect_to_server,listen_to_server
+import threading
 
 
 def main():
+	#connect to server
+	sock, player_id = connect_to_server()
+	#state game
+	game_state = {} 
+	players_by_id = {}
+
+	def update_game_state(state):
+		global game_state
+		game_state = state
+
+	threading.Thread(
+	    target=listen_to_server,
+	    args=(sock, update_game_state),
+	    daemon=True
+	).start()
+
 	pygame.init()
 	screen = pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
 	clock = pygame.time.Clock()
@@ -22,7 +40,7 @@ def main():
 	#AsteroidField.containers = (updatable)
 	#Shot.containers = (shots,updatable, drawable)
 
-	player = Player(SCREEN_WIDTH/2,SCREEN_HEIGHT/2)
+	player = Player(SCREEN_WIDTH/2,SCREEN_HEIGHT/2,player_id)
 	#asteroidField = AsteroidField()
 
 
@@ -32,7 +50,7 @@ def main():
     			if event.type == pygame.QUIT:
         			return
 				
-		updatable.update(dt)
+		updatable.update(dt,sock)
 
 		# for asteroid in asteroids:
 		# 	if asteroid.collides_with(player):
@@ -43,7 +61,31 @@ def main():
 		# 			asteroid.split()
 		# 			shot.kill()
 
+
+		for player_data in game_state.get("players", []):
+			pid = player_data["id"]
+			pos = player_data["position"]
+			rot = player_data["rotation"]
+			radius = player_data.get("radius", PLAYER_RADIUS)
+
+    		# couleur pour différencier toi des autres (non utilisé ici mais possible plus tard)
+			color = "red" if pid == player_id else "white"
+			if pid not in players_by_id:
+    		    # Créer une instance Player (hérite de CircleShape)
+				player = Player(pos["x"], pos["y"],pid)
+				player.rotation = rot
+				player.radius = radius
+				players_by_id[pid] = player
+			else:
+				    # Mettre à jour la position/rotation
+				player = players_by_id[pid]
+				player.position.x = pos["x"]
+				player.position.y = pos["y"]
+				player.rotation = rot
+				player.radius = radius 
+
 		screen.fill("black")
+
 
 		for obj in drawable: 
 			obj.draw(screen)
@@ -52,7 +94,6 @@ def main():
 		
 		# limit the framerate to 60 FPS
 		dt = clock.tick(60) / 1000
-		print(dt)
 
 if __name__ == "__main__":
 	main()

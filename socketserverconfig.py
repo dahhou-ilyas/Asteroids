@@ -32,16 +32,26 @@ def send_inputs(sock, player_id, inputs):
 
 
 
-def listen_to_server(sock, game_state_callback):
+def listen_to_server(sock, on_game_state):
     buffer = ""
     while True:
-        data = sock.recv(1024).decode()
-        buffer += data
-        while "\n" in buffer:
-            line, buffer = buffer.split("\n", 1)
-            msg = json.loads(line)
-            if msg["type"] == "game_state":
-                game_state_callback(msg["data"])
+        try:
+            data = sock.recv(1024).decode()
+            if not data:
+                print("🔌 Déconnecté du serveur.")
+                break
+            buffer += data
+
+            while "\n" in buffer:
+                line, buffer = buffer.split("\n", 1)
+                msg = json.loads(line)
+
+                if msg["type"] == "game_state":
+                    on_game_state(msg["data"])
+
+        except Exception as e:
+            print(f"⚠️ Erreur réseau : {e}")
+            break
 
 
 
@@ -50,26 +60,3 @@ def send_message(sock, message):
     data = json.dumps(message) + "\n"
     sock.sendall(data.encode())
 
-
-sock, player_id = connect_to_server()
-print(sock,player_id)
-
-
-message = {
-    "type": "input",
-    "data": {
-        "player_id": player_id,
-        "inputs": {
-            "left": False,
-            "right": True,
-            "forward": True,
-            "backward": False,
-            "shoot": False
-        }
-    }
-}
-
-send_message(sock, message)
-
-while True:
-    pass
