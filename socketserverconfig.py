@@ -42,3 +42,34 @@ def listen_to_server(sock, game_state_callback):
             msg = json.loads(line)
             if msg["type"] == "game_state":
                 game_state_callback(msg["data"])
+
+
+
+def send_message(sock, message):
+    # Convertir en JSON + ajout de "\n" comme séparateur
+    data = json.dumps(message) + "\n"
+    sock.sendall(data.encode())
+
+
+sock, player_id = connect_to_server()
+print(sock,player_id)
+
+
+message = {
+    "type": "input",
+    "data": {
+        "player_id": player_id,
+        "inputs": {
+            "left": False,
+            "right": True,
+            "forward": True,
+            "backward": False,
+            "shoot": False
+        }
+    }
+}
+
+send_message(sock, message)
+
+while True:
+    pass

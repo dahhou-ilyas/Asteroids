@@ -236,6 +236,7 @@ func (gs *GameServer) handleConnection(conn net.Conn) {
 	// Écouter les messages du client
 	for {
 		line, err := reader.ReadString('\n')
+
 		if err != nil {
 			log.Printf("Erreur lecture message de %s: %v", playerID, err)
 			break
