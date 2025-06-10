@@ -17,7 +17,7 @@ def main():
 	players_by_id = {}
 
 	def update_game_state(state):
-		global game_state
+		nonlocal game_state
 		game_state = state
 
 	threading.Thread(

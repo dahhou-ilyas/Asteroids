@@ -38,19 +38,20 @@ def listen_to_server(sock, on_game_state):
         try:
             data = sock.recv(1024).decode()
             if not data:
-                print("🔌 Déconnecté du serveur.")
+                print("Déconnecté du serveur.")
                 break
             buffer += data
 
             while "\n" in buffer:
                 line, buffer = buffer.split("\n", 1)
+                
                 msg = json.loads(line)
-
+                
                 if msg["type"] == "game_state":
                     on_game_state(msg["data"])
 
         except Exception as e:
-            print(f"⚠️ Erreur réseau : {e}")
+            print(f"Erreur réseau : {e}")
             break
 
 
