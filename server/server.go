@@ -358,7 +358,6 @@ func (gs *GameServer) broadcastGameState() {
 
 	// Créer la liste des joueurs à supprimer (connexions fermées)
 	var playersToRemove []string
-	fmt.Println(len(gs.players))
 	for playerID, player := range gs.players {
 		err := gs.sendMessageToPlayer(player, gameStateMsg)
 		if err != nil {

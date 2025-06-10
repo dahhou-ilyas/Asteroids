@@ -1,102 +1,102 @@
-import pygame
-from constants import *
-from player import Player
-from asteroid import Asteroid
-from asteroidfield import AsteroidField
-from shot import Shot
-import sys
-from socketserverconfig import connect_to_server,listen_to_server
-import threading
+# import pygame
+# from constants import *
+# from player import Player
+# from asteroid import Asteroid
+# from asteroidfield import AsteroidField
+# from shot import Shot
+# import sys
+# from socketserverconfig import connect_to_server,listen_to_server
+# import threading
 
 
-def main():
-	#connect to server
-	sock, player_id = connect_to_server()
-	#state game
-	game_state = {} 
-	players_by_id = {}
+# def main():
+# 	#connect to server
+# 	sock, player_id = connect_to_server()
+# 	#state game
+# 	game_state = {} 
+# 	players_by_id = {}
 
-	def update_game_state(state):
-		nonlocal game_state
-		game_state = state
+# 	def update_game_state(state):
+# 		nonlocal game_state
+# 		game_state = state
 
-	threading.Thread(
-	    target=listen_to_server,
-	    args=(sock, update_game_state),
-	    daemon=True
-	).start()
+# 	threading.Thread(
+# 	    target=listen_to_server,
+# 	    args=(sock, update_game_state),
+# 	    daemon=True
+# 	).start()
 
-	pygame.init()
-	screen = pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
-	clock = pygame.time.Clock()
+# 	pygame.init()
+# 	screen = pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
+# 	clock = pygame.time.Clock()
   
-	updatable = pygame.sprite.Group()
-	drawable = pygame.sprite.Group()
-	#asteroids = pygame.sprite.Group()
-	#shots = pygame.sprite.Group()
+# 	updatable = pygame.sprite.Group()
+# 	drawable = pygame.sprite.Group()
+# 	#asteroids = pygame.sprite.Group()
+# 	#shots = pygame.sprite.Group()
 
-	Player.containers = (updatable, drawable)
-	#Asteroid.containers = (asteroids, updatable, drawable)
-	#AsteroidField.containers = (updatable)
-	#Shot.containers = (shots,updatable, drawable)
+# 	Player.containers = (updatable, drawable)
+# 	#Asteroid.containers = (asteroids, updatable, drawable)
+# 	#AsteroidField.containers = (updatable)
+# 	#Shot.containers = (shots,updatable, drawable)
 
-	player = Player(SCREEN_WIDTH/2,SCREEN_HEIGHT/2,player_id)
-	#asteroidField = AsteroidField()
+# 	player = Player(SCREEN_WIDTH/2,SCREEN_HEIGHT/2,player_id)
+# 	#asteroidField = AsteroidField()
 
 
-	dt = 0
-	while True :
-		for event in pygame.event.get():
-    			if event.type == pygame.QUIT:
-        			return
+# 	dt = 0
+# 	while True :
+# 		for event in pygame.event.get():
+#     			if event.type == pygame.QUIT:
+#         			return
 				
-		updatable.update(dt,sock)
+# 		updatable.update(dt,sock)
 
-		# for asteroid in asteroids:
-		# 	if asteroid.collides_with(player):
-		# 		print("Game over!")
-		# 		sys.exit()
-		# 	for shot in shots:
-		# 		if shot.collides_with(asteroid):
-		# 			asteroid.split()
-		# 			shot.kill()
-
-
-		for player_data in game_state.get("players", []):
-			pid = player_data["id"]
-			pos = player_data["position"]
-			rot = player_data["rotation"]
-			radius = player_data.get("radius", PLAYER_RADIUS)
-
-    		# couleur pour différencier toi des autres (non utilisé ici mais possible plus tard)
-			color = "red" if pid == player_id else "white"
-			if pid not in players_by_id:
-    		    # Créer une instance Player (hérite de CircleShape)
-				player = Player(pos["x"], pos["y"],pid)
-				player.rotation = rot
-				player.radius = radius
-				players_by_id[pid] = player
-			else:
-				    # Mettre à jour la position/rotation
-				player = players_by_id[pid]
-				player.position.x = pos["x"]
-				player.position.y = pos["y"]
-				player.rotation = rot
-				player.radius = radius 
-
-		screen.fill("black")
+# 		# for asteroid in asteroids:
+# 		# 	if asteroid.collides_with(player):
+# 		# 		print("Game over!")
+# 		# 		sys.exit()
+# 		# 	for shot in shots:
+# 		# 		if shot.collides_with(asteroid):
+# 		# 			asteroid.split()
+# 		# 			shot.kill()
 
 
-		for obj in drawable: 
-			obj.draw(screen)
+# 		for player_data in game_state.get("players", []):
+# 			pid = player_data["id"]
+# 			pos = player_data["position"]
+# 			rot = player_data["rotation"]
+# 			radius = player_data.get("radius", PLAYER_RADIUS)
+
+#     		# couleur pour différencier toi des autres (non utilisé ici mais possible plus tard)
+# 			color = "red" if pid == player_id else "white"
+# 			if pid not in players_by_id:
+#     		    # Créer une instance Player (hérite de CircleShape)
+# 				player = Player(pos["x"], pos["y"],pid)
+# 				player.rotation = rot
+# 				player.radius = radius
+# 				players_by_id[pid] = player
+# 			else:
+# 				    # Mettre à jour la position/rotation
+# 				player = players_by_id[pid]
+# 				player.position.x = pos["x"]
+# 				player.position.y = pos["y"]
+# 				player.rotation = rot
+# 				player.radius = radius 
+
+# 		screen.fill("black")
+
+
+# 		for obj in drawable: 
+# 			obj.draw(screen)
 		
-		pygame.display.flip()
+# 		pygame.display.flip()
 		
-		# limit the framerate to 60 FPS
-		dt = clock.tick(60) / 1000
+# 		# limit the framerate to 60 FPS
+# 		dt = clock.tick(60) / 1000
 
-if __name__ == "__main__":
-	main()
+# if __name__ == "__main__":
+# 	main()
 
 # speed : vitesse en pixels par seconde (ex. : 200 px/s)
 # dt : delta time, durée écoulée entre deux images (en secondes)
@@ -112,3 +112,126 @@ if __name__ == "__main__":
 # alors le déplacement sera 200 * 0.016 = 3.2 pixels sur cette frame.
 
 # comment on peut crée un mode multiplayer qui permet de deux player de player dans un single gameplay donc comment faire (je besoin de travaillé avec socket with go et socket en create my own protocol)
+
+import pygame
+from constants import *
+from player import Player
+from asteroid import Asteroid
+from asteroidfield import AsteroidField
+from shot import Shot
+import sys
+from socketserverconfig import connect_to_server, listen_to_server
+import threading
+
+def main():
+    # Connexion au serveur
+    sock, player_id = connect_to_server()
+    
+    # État du jeu
+    game_state = {}
+    players_by_id = {}
+    
+    def update_game_state(state):
+        nonlocal game_state
+        game_state = state
+    
+    # Démarrer le thread d'écoute
+    threading.Thread(
+        target=listen_to_server,
+        args=(sock, update_game_state),
+        daemon=True
+    ).start()
+    
+    pygame.init()
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    clock = pygame.time.Clock()
+    
+    updatable = pygame.sprite.Group()
+    drawable = pygame.sprite.Group()
+    
+    Player.containers = (updatable, drawable)
+    
+    local_player = Player(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, player_id)
+    players_by_id[player_id] = local_player
+    
+    dt = 0
+    
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return
+        
+        if player_id in players_by_id:
+            players_by_id[player_id].update(dt, sock)
+        
+        sync_players_with_server_state(game_state, players_by_id, drawable, updatable)
+        
+        # Rendu
+        screen.fill("black")
+        for obj in drawable:
+            obj.draw(screen)
+        
+        pygame.display.flip()
+        
+        #dans notre cas dt on n'utilise pas dt dnas le calcule comme précedent car tous il gerer dans le server go
+        dt = clock.tick(60) / 1000
+
+def sync_players_with_server_state(game_state, players_by_id, drawable, updatable):
+    """Synchronise les joueurs locaux avec l'état du serveur"""
+    
+    # Récupérer les joueurs du serveur
+    server_players = game_state.get("players", [])
+    server_player_ids = {p["id"] for p in server_players}
+    
+    # Supprimer les joueurs qui ne sont plus sur le serveur
+    players_to_remove = []
+    for pid in players_by_id:
+        if pid not in server_player_ids:
+            players_to_remove.append(pid)
+    
+    for pid in players_to_remove:
+        player_to_remove = players_by_id[pid]
+        player_to_remove.kill()  # Supprime des groupes sprite
+        del players_by_id[pid]
+        print(f"Joueur {pid} supprimé")
+    
+    # Créer ou mettre à jour les joueurs
+    for player_data in server_players:
+        pid = player_data["id"]
+        pos = player_data["position"]
+        rot = player_data["rotation"]
+        radius = player_data.get("radius", PLAYER_RADIUS)
+        alive = player_data.get("alive", True)
+        
+        if pid not in players_by_id:
+            # Créer un nouveau joueur et l'ajouter aux groupes
+            new_player = Player(pos["x"], pos["y"], pid)
+            new_player.rotation = rot
+            new_player.radius = radius
+            players_by_id[pid] = new_player
+            
+            # S'assurer qu'il est dans les bons groupes
+            if new_player not in drawable:
+                drawable.add(new_player)
+            if new_player not in updatable:
+                updatable.add(new_player)
+                
+            print(f"Nouveau joueur créé: {pid}")
+        else:
+            # Mettre à jour le joueur existant
+            existing_player = players_by_id[pid]
+            existing_player.position.x = pos["x"]
+            existing_player.position.y = pos["y"]
+            existing_player.rotation = rot
+            existing_player.radius = radius
+            
+            # Gérer l'état vivant/mort
+            if not alive and existing_player.alive:
+                existing_player.alive = False
+                print(f"Joueur {pid} est mort")
+            elif alive and not existing_player.alive:
+                existing_player.alive = True
+                print(f"Joueur {pid} est ressuscité")
+
+if __name__ == "__main__":
+    main()
