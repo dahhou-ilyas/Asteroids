@@ -151,7 +151,7 @@ def main():
     
     Player.containers = (updatable, drawable)
     
-    local_player = Player(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, player_id)
+    local_player = Player(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, player_id,color=(255, 255, 255))
     players_by_id[player_id] = local_player
     
     dt = 0
@@ -164,7 +164,7 @@ def main():
         if player_id in players_by_id:
             players_by_id[player_id].update(dt, sock)
         
-        sync_players_with_server_state(game_state, players_by_id, drawable, updatable)
+        sync_players_with_server_state(game_state, players_by_id, drawable, updatable,player_id)
         
         # Rendu
         screen.fill("black")
@@ -176,7 +176,7 @@ def main():
         #dans notre cas dt on n'utilise pas dt dnas le calcule comme précedent car tous il gerer dans le server go
         dt = clock.tick(60) / 1000
 
-def sync_players_with_server_state(game_state, players_by_id, drawable, updatable):
+def sync_players_with_server_state(game_state, players_by_id, drawable, updatable,player_id):
     """Synchronise les joueurs locaux avec l'état du serveur"""
     
     # Récupérer les joueurs du serveur
@@ -203,9 +203,14 @@ def sync_players_with_server_state(game_state, players_by_id, drawable, updatabl
         radius = player_data.get("radius", PLAYER_RADIUS)
         alive = player_data.get("alive", True)
         
+        if pid == player_id:
+             color = (255, 255, 255)
+        else:
+             color = (0, 255, 0)
+        
         if pid not in players_by_id:
             # Créer un nouveau joueur et l'ajouter aux groupes
-            new_player = Player(pos["x"], pos["y"], pid)
+            new_player = Player(pos["x"], pos["y"], pid,color=color)
             new_player.rotation = rot
             new_player.radius = radius
             players_by_id[pid] = new_player
@@ -224,6 +229,7 @@ def sync_players_with_server_state(game_state, players_by_id, drawable, updatabl
             existing_player.position.y = pos["y"]
             existing_player.rotation = rot
             existing_player.radius = radius
+            existing_player.color = color
             
             # Gérer l'état vivant/mort
             if not alive and existing_player.alive:
