@@ -319,7 +319,7 @@ func (gs *GameServer) updateGame(dt float64) {
 		if !player.Alive {
 			continue
 		}
-
+		player.ShootTimer = player.ShootTimer - dt
 		// Appliquer la rotation
 		if player.Inputs.Left {
 			player.Rotation += PLAYER_TURN_SPEED * dt
