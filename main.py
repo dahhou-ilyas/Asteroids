@@ -295,3 +295,5 @@ def sync_player_shots(game_state, shots_by_id, drawable, updatable,player_id):
         
 if __name__ == "__main__":
     main()
+    
+# I need to add astroid for 
