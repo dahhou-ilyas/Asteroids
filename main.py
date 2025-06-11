@@ -148,8 +148,10 @@ def main():
     
     updatable = pygame.sprite.Group()
     drawable = pygame.sprite.Group()
+    shots = pygame.sprite.Group()
     
     Player.containers = (updatable, drawable)
+    Shot.containers = (shots,updatable, drawable)
     
     local_player = Player(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, player_id,color=(255, 255, 255))
     players_by_id[player_id] = local_player
@@ -165,7 +167,7 @@ def main():
             players_by_id[player_id].update(dt, sock)
         
         sync_players_with_server_state(game_state, players_by_id, drawable, updatable,player_id)
-        
+        sync_player_shots(game_state,drawable, updatable)
         # Rendu
         screen.fill("black")
         for obj in drawable:
@@ -238,6 +240,17 @@ def sync_players_with_server_state(game_state, players_by_id, drawable, updatabl
             elif alive and not existing_player.alive:
                 existing_player.alive = True
                 print(f"Joueur {pid} est ressuscité")
-
+                
+def sync_player_shots(game_state,drawable, updatable):
+    shots = game_state.get("shots", [])
+    print(game_state)
+    print(shots)
+    # for shot in shots: 
+    #     newshot = Shot(shot["position"]["x"],shot["position"]["y"],shot["radius"])
+    #     forward = pygame.Vector2(shot["velocity"]["x"], shot["velocity"]["y"])
+    #     newshot.velocity = forward
+    #     drawable.add(shot)
+    #     updatable.add(shot)
+        
 if __name__ == "__main__":
     main()

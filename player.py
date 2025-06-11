@@ -23,9 +23,7 @@ class Player(CircleShape):
     def draw(self, screen):
         pygame.draw.polygon(screen,self.color,self.triangle(),2)
     
-    def update(self, dt,sock):
-        self.shoot_timer -= dt
-        
+    def update(self, dt,sock):        
         keys = pygame.key.get_pressed()
 
         inputs = {
@@ -55,11 +53,12 @@ class Player(CircleShape):
             }
         }
         
+        
         try:
             sock.sendall((json.dumps(message) + "\n").encode())
         except Exception as e:
             print(f"⚠️ Erreur envoi au serveur : {e}")
-        
+    
             
 
     def rotate(self,dt):
