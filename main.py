@@ -130,6 +130,7 @@ def main():
     # État du jeu
     game_state = {}
     players_by_id = {}
+    shots_by_id = {}
     
     def update_game_state(state):
         nonlocal game_state
@@ -167,8 +168,8 @@ def main():
             players_by_id[player_id].update(dt, sock)
         
         sync_players_with_server_state(game_state, players_by_id, drawable, updatable,player_id)
-        sync_player_shots(game_state,drawable, updatable)
-        # Rendu
+        sync_player_shots(game_state, shots_by_id, drawable, updatable)
+
         screen.fill("black")
         for obj in drawable:
             obj.draw(screen)
@@ -241,16 +242,49 @@ def sync_players_with_server_state(game_state, players_by_id, drawable, updatabl
                 existing_player.alive = True
                 print(f"Joueur {pid} est ressuscité")
                 
-def sync_player_shots(game_state,drawable, updatable):
-    shots = game_state.get("shots", [])
-    print(game_state)
-    print(shots)
-    # for shot in shots: 
-    #     newshot = Shot(shot["position"]["x"],shot["position"]["y"],shot["radius"])
-    #     forward = pygame.Vector2(shot["velocity"]["x"], shot["velocity"]["y"])
-    #     newshot.velocity = forward
-    #     drawable.add(shot)
-    #     updatable.add(shot)
+def sync_player_shots(game_state, shots_by_id, drawable, updatable):
+    """Synchronise les tirs avec l'état du serveur"""
+    server_shots = game_state.get("shots", [])
+    
+    #  ID unique pour chaque tir basé sur sa position et vélocité
+    current_server_shots = set()
+    
+    for shot_data in server_shots:
+        # ID unique basé sur les propriétés du tir
+        shot_id = f"{shot_data['position']['x']:.1f}_{shot_data['position']['y']:.1f}_{shot_data['velocity']['x']:.1f}_{shot_data['velocity']['y']:.1f}_{shot_data['owner_id']}"
+        current_server_shots.add(shot_id)
+        
+        # Si ce tir n'existe pas encore localement, le créer
+        if shot_id not in shots_by_id:
+            new_shot = Shot(
+                shot_data["position"]["x"],
+                shot_data["position"]["y"], 
+                shot_data["radius"]
+            )
+            new_shot.velocity = pygame.Vector2(
+                shot_data["velocity"]["x"], 
+                shot_data["velocity"]["y"]
+            )
+            
+            shots_by_id[shot_id] = new_shot
+            drawable.add(new_shot)
+            updatable.add(new_shot)
+        else:
+            # Mettre à jour la position du tir existant
+            existing_shot = shots_by_id[shot_id]
+            existing_shot.position.x = shot_data["position"]["x"]
+            existing_shot.position.y = shot_data["position"]["y"]
+    
+    # Supprimer les tirs qui ne sont plus sur le serveur
+    shots_to_remove = []
+    for shot_id in shots_by_id:
+        if shot_id not in current_server_shots:
+            shots_to_remove.append(shot_id)
+    
+    for shot_id in shots_to_remove:
+        shot_to_remove = shots_by_id[shot_id]
+        shot_to_remove.kill()  # Supprime des groupes sprite
+        del shots_by_id[shot_id]
         
 if __name__ == "__main__":
     main()
