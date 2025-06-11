@@ -168,7 +168,7 @@ def main():
             players_by_id[player_id].update(dt, sock)
         
         sync_players_with_server_state(game_state, players_by_id, drawable, updatable,player_id)
-        sync_player_shots(game_state, shots_by_id, drawable, updatable)
+        sync_player_shots(game_state, shots_by_id, drawable, updatable,player_id)
 
         screen.fill("black")
         for obj in drawable:
@@ -242,7 +242,7 @@ def sync_players_with_server_state(game_state, players_by_id, drawable, updatabl
                 existing_player.alive = True
                 print(f"Joueur {pid} est ressuscité")
                 
-def sync_player_shots(game_state, shots_by_id, drawable, updatable):
+def sync_player_shots(game_state, shots_by_id, drawable, updatable,player_id):
     """Synchronise les tirs avec l'état du serveur"""
     server_shots = game_state.get("shots", [])
     
@@ -256,10 +256,17 @@ def sync_player_shots(game_state, shots_by_id, drawable, updatable):
         
         # Si ce tir n'existe pas encore localement, le créer
         if shot_id not in shots_by_id:
+            if shot_data['owner_id'] == player_id:
+                 color = (255, 255, 255)
+            else:
+                color = (0, 255, 0)
+            
             new_shot = Shot(
                 shot_data["position"]["x"],
                 shot_data["position"]["y"], 
-                shot_data["radius"]
+                shot_data["radius"],
+                 color = color
+                
             )
             new_shot.velocity = pygame.Vector2(
                 shot_data["velocity"]["x"], 
