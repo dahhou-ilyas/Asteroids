@@ -85,6 +85,7 @@ type PlayerInputs struct {
 
 type GameState struct {
 	Players   []*Player `json:"players"`
+	Shots     []*Shot   `json:"shots"`
 	Timestamp int64     `json:"timestamp"`
 }
 
@@ -111,11 +112,19 @@ type GameServer struct {
 	listener  net.Listener
 }
 
+type Shot struct {
+	Position Vector2 `json:"position"`
+	Velocity Vector2 `json:"velocity"`
+	Radius   float64 `json:"radius"`
+	OwnerID  string  `json:"owner_id"`
+}
+
 func NewGameServer() *GameServer {
 	return &GameServer{
 		players: make(map[string]*Player),
 		gameState: &GameState{
 			Players: make([]*Player, 0),
+			Shots:   make([]*Shot, 0),
 		},
 		running: true,
 	}
@@ -331,6 +340,29 @@ func (gs *GameServer) updateGame(dt float64) {
 
 		// Wrap around screen
 		gs.wrapPosition(&player.Position)
+
+		if player.Inputs.Shoot && player.ShootTimer <= 0 {
+			player.ShootTimer = PLAYER_SHOOT_COOLDOWN
+			forward := Vector2{X: 0, Y: 1}.Rotate(player.Rotation)
+			shot := &Shot{
+				Position: player.Position,
+				Velocity: forward.Multiply(PLAYER_SHOOT_SPEED),
+				Radius:   SHOT_RADIUS,
+				OwnerID:  player.ID,
+			}
+			gs.gameState.Shots = append(gs.gameState.Shots, shot)
+		}
+
+		for i := len(gs.gameState.Shots) - 1; i >= 0; i-- {
+			shot := gs.gameState.Shots[i]
+			shot.Position = shot.Position.Add(shot.Velocity.Multiply(dt))
+
+			// Supprimer si hors écran
+			if shot.Position.X < -50 || shot.Position.X > SCREEN_WIDTH+50 ||
+				shot.Position.Y < -50 || shot.Position.Y > SCREEN_HEIGHT+50 {
+				gs.gameState.Shots = append(gs.gameState.Shots[:i], gs.gameState.Shots[i+1:]...)
+			}
+		}
 
 	}
 
