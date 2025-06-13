@@ -170,8 +170,13 @@ def main():
         if player_id in players_by_id:
             players_by_id[player_id].update(dt, sock)
         
-        sync_players_with_server_state(game_state, players_by_id, drawable, updatable,player_id)
+        result=sync_players_with_server_state(game_state, players_by_id, drawable, updatable,player_id)
+        
+        if result == "Quit":
+            return
+        
         sync_player_shots(game_state, shots_by_id, drawable, updatable,player_id)
+        sync_asteroids_with_server_state(game_state, asteroids_by_id, drawable, updatable,asteroids)
 
         screen.fill("black")
         for obj in drawable:
@@ -241,6 +246,10 @@ def sync_players_with_server_state(game_state, players_by_id, drawable, updatabl
             if not alive and existing_player.alive:
                 existing_player.alive = False
                 print(f"Joueur {pid} est mort")
+                if player_id == existing_player.player_id:
+                    return "Quit"
+                else:
+                    existing_player.kill()
             elif alive and not existing_player.alive:
                 existing_player.alive = True
                 print(f"Joueur {pid} est ressuscité")
@@ -297,14 +306,18 @@ def sync_player_shots(game_state, shots_by_id, drawable, updatable,player_id):
         del shots_by_id[shot_id]
         
 
-def sync_asteroids_with_server_state(game_state, asteroids_by_id, drawable, updatable):
-    """Synchronise les astroid avec l'état du serveur"""
+def sync_asteroids_with_server_state(game_state, asteroids_by_id, drawable, updatable, asteroids):
+    """Synchronise les astéroïdes avec l'état du serveur"""
     server_asteroids = game_state.get("asteroids", [])
     current_server_asteroids = set()
-    for asteroid_data in server_asteroids : 
+    
+    # Créer ou mettre à jour les astéroïdes existants
+    for asteroid_data in server_asteroids:
         asteroid_id = f"{asteroid_data['position']['x']:.0f}_{asteroid_data['position']['y']:.0f}_{asteroid_data['radius']:.0f}_{asteroid_data['velocity']['x']:.1f}_{asteroid_data['velocity']['y']:.1f}"
         current_server_asteroids.add(asteroid_id)
+        
         if asteroid_id not in asteroids_by_id:
+            # Créer un nouvel astéroïde
             new_asteroid = Asteroid(
                 asteroid_data["position"]["x"],
                 asteroid_data["position"]["y"],
@@ -317,23 +330,27 @@ def sync_asteroids_with_server_state(game_state, asteroids_by_id, drawable, upda
             asteroids_by_id[asteroid_id] = new_asteroid
             drawable.add(new_asteroid)
             updatable.add(new_asteroid)
+            asteroids.add(new_asteroid)
         else:
+            # Mettre à jour l'astéroïde existant
             existing_asteroid = asteroids_by_id[asteroid_id]
             existing_asteroid.position.x = asteroid_data["position"]["x"]
             existing_asteroid.position.y = asteroid_data["position"]["y"]
             existing_asteroid.velocity.x = asteroid_data["velocity"]["x"]
             existing_asteroid.velocity.y = asteroid_data["velocity"]["y"]
             existing_asteroid.radius = asteroid_data["radius"]
-        asteroids_to_remove = []
-        for asteroid_id in asteroids_by_id:
-            if asteroid_id not in current_server_asteroids:
-                asteroids_to_remove.append(asteroid_id)
-        for asteroid_id in asteroids_to_remove:
-            asteroid_to_remove = asteroids_by_id[asteroid_id]
-            asteroid_to_remove.kill()
-            del asteroids_by_id[asteroid_id]    
-
     
+    asteroids_to_remove = []
+    for asteroid_id in asteroids_by_id:
+        if asteroid_id not in current_server_asteroids:
+            asteroids_to_remove.append(asteroid_id)
+    
+    for asteroid_id in asteroids_to_remove:
+        asteroid_to_remove = asteroids_by_id[asteroid_id]
+        asteroid_to_remove.kill()
+        del asteroids_by_id[asteroid_id]
+
+        
         
 if __name__ == "__main__":
     main()
