@@ -22,7 +22,7 @@ const (
 	PLAYER_RADIUS         = 20
 	ASTEROID_MIN_RADIUS   = 20
 	ASTEROID_KINDS        = 3
-	ASTEROID_SPAWN_RATE   = 0.9
+	ASTEROID_SPAWN_RATE   = 0.8
 	ASTEROID_MAX_RADIUS   = ASTEROID_MIN_RADIUS * ASTEROID_KINDS
 	PLAYER_TURN_SPEED     = 300
 	PLAYER_SPEED_RUN      = 200
@@ -390,7 +390,7 @@ func (gs *GameServer) updateGame(dt float64) {
 			player.Position = player.Position.Add(forward.Multiply(-PLAYER_SPEED_RUN * dt))
 		}
 
-		// Wrap around screen
+		// Wrap around screen SEULEMENT pour les joueurs
 		gs.wrapPosition(&player.Position)
 
 		if player.Inputs.Shoot && player.ShootTimer <= 0 {
@@ -417,11 +417,16 @@ func (gs *GameServer) updateGame(dt float64) {
 		}
 	}
 
-	// Mettre à jour les astéroïdes
+	// Mettre à jour les astéroïdes - SUPPRIMER le wrap, les laisser sortir de l'écran
 	for i := len(gs.gameState.Asteroids) - 1; i >= 0; i-- {
 		asteroid := gs.gameState.Asteroids[i]
 		asteroid.Position = asteroid.Position.Add(asteroid.Velocity.Multiply(dt))
-		gs.wrapPosition(&asteroid.Position)
+
+		// Supprimer les astéroïdes qui sont trop loin de l'écran
+		if asteroid.Position.X < -200 || asteroid.Position.X > SCREEN_WIDTH+200 ||
+			asteroid.Position.Y < -200 || asteroid.Position.Y > SCREEN_HEIGHT+200 {
+			gs.gameState.Asteroids = append(gs.gameState.Asteroids[:i], gs.gameState.Asteroids[i+1:]...)
+		}
 	}
 
 	// Génération d'astéroïdes
@@ -435,6 +440,32 @@ func (gs *GameServer) updateGame(dt float64) {
 	gs.checkCollisions()
 
 	gs.gameState.Timestamp = time.Now().UnixNano() / int64(time.Millisecond)
+}
+
+func (gs *GameServer) spawnAsteroid() {
+	edge := gs.asteroidField.Edges[rand.Intn(len(gs.asteroidField.Edges))]
+	speed := float64(rand.Intn(61) + 40) // 40-100
+	velocity := edge.Direction.Multiply(speed)
+
+	// Rotation aléatoire
+	rotationAngle := float64(rand.Intn(61) - 30) // -30 à 30
+	velocity = velocity.Rotate(rotationAngle)
+
+	position := edge.PositionFunc(rand.Float64())
+	kind := rand.Intn(ASTEROID_KINDS) + 1
+	radius := float64(ASTEROID_MIN_RADIUS * kind)
+
+	asteroid := &Asteroid{
+		Position: position,
+		Velocity: velocity,
+		Radius:   radius,
+	}
+
+	// Debug: afficher où l'astéroïde est créé
+	log.Printf("Spawning asteroid at position: (%.1f, %.1f) with velocity: (%.1f, %.1f)",
+		position.X, position.Y, velocity.X, velocity.Y)
+
+	gs.gameState.Asteroids = append(gs.gameState.Asteroids, asteroid)
 }
 
 func (gs *GameServer) checkCollisions() {
@@ -510,28 +541,6 @@ func (gs *GameServer) splitAsteroid(index int) {
 	}
 
 	gs.gameState.Asteroids = append(gs.gameState.Asteroids, asteroid1, asteroid2)
-}
-
-func (gs *GameServer) spawnAsteroid() {
-	edge := gs.asteroidField.Edges[rand.Intn(len(gs.asteroidField.Edges))]
-	speed := float64(rand.Intn(61) + 40) // 40-100
-	velocity := edge.Direction.Multiply(speed)
-
-	// Rotation aléatoire
-	rotationAngle := float64(rand.Intn(61) - 30) // -30 à 30
-	velocity = velocity.Rotate(rotationAngle)
-
-	position := edge.PositionFunc(rand.Float64())
-	kind := rand.Intn(ASTEROID_KINDS) + 1
-	radius := float64(ASTEROID_MIN_RADIUS * kind)
-
-	asteroid := &Asteroid{
-		Position: position,
-		Velocity: velocity,
-		Radius:   radius,
-	}
-
-	gs.gameState.Asteroids = append(gs.gameState.Asteroids, asteroid)
 }
 
 func (gs *GameServer) wrapPosition(pos *Vector2) {
