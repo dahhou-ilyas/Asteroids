@@ -131,6 +131,7 @@ def main():
     game_state = {}
     players_by_id = {}
     shots_by_id = {}
+    asteroids_by_id = {}
     
     def update_game_state(state):
         nonlocal game_state
@@ -150,9 +151,11 @@ def main():
     updatable = pygame.sprite.Group()
     drawable = pygame.sprite.Group()
     shots = pygame.sprite.Group()
+    asteroids = pygame.sprite.Group()
     
     Player.containers = (updatable, drawable)
     Shot.containers = (shots,updatable, drawable)
+    Asteroid.containers = (asteroids, updatable, drawable)
     
     local_player = Player(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, player_id,color=(255, 255, 255))
     players_by_id[player_id] = local_player
@@ -292,6 +295,45 @@ def sync_player_shots(game_state, shots_by_id, drawable, updatable,player_id):
         shot_to_remove = shots_by_id[shot_id]
         shot_to_remove.kill()  # Supprime des groupes sprite
         del shots_by_id[shot_id]
+        
+
+def sync_asteroids_with_server_state(game_state, asteroids_by_id, drawable, updatable):
+    """Synchronise les astroid avec l'état du serveur"""
+    server_asteroids = game_state.get("asteroids", [])
+    current_server_asteroids = set()
+    for asteroid_data in server_asteroids : 
+        asteroid_id = f"{asteroid_data['position']['x']:.0f}_{asteroid_data['position']['y']:.0f}_{asteroid_data['radius']:.0f}_{asteroid_data['velocity']['x']:.1f}_{asteroid_data['velocity']['y']:.1f}"
+        current_server_asteroids.add(asteroid_id)
+        if asteroid_id not in asteroids_by_id:
+            new_asteroid = Asteroid(
+                asteroid_data["position"]["x"],
+                asteroid_data["position"]["y"],
+                asteroid_data["radius"]
+            )
+            new_asteroid.velocity = pygame.Vector2(
+                asteroid_data["velocity"]["x"],
+                asteroid_data["velocity"]["y"]
+            )
+            asteroids_by_id[asteroid_id] = new_asteroid
+            drawable.add(new_asteroid)
+            updatable.add(new_asteroid)
+        else:
+            existing_asteroid = asteroids_by_id[asteroid_id]
+            existing_asteroid.position.x = asteroid_data["position"]["x"]
+            existing_asteroid.position.y = asteroid_data["position"]["y"]
+            existing_asteroid.velocity.x = asteroid_data["velocity"]["x"]
+            existing_asteroid.velocity.y = asteroid_data["velocity"]["y"]
+            existing_asteroid.radius = asteroid_data["radius"]
+        asteroids_to_remove = []
+        for asteroid_id in asteroids_by_id:
+            if asteroid_id not in current_server_asteroids:
+                asteroids_to_remove.append(asteroid_id)
+        for asteroid_id in asteroids_to_remove:
+            asteroid_to_remove = asteroids_by_id[asteroid_id]
+            asteroid_to_remove.kill()
+            del asteroids_by_id[asteroid_id]    
+
+    
         
 if __name__ == "__main__":
     main()
