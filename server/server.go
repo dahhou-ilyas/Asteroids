@@ -108,6 +108,7 @@ type WelcomeMessage struct {
 type GameServer struct {
 	players       map[string]*Player
 	nextPlayerID  int
+	nextEntityID  uint64
 	gameState     *GameState
 	asteroidField *AsteroidField
 	mutex         sync.RWMutex
@@ -116,6 +117,7 @@ type GameServer struct {
 }
 
 type Shot struct {
+	ID       uint64  `json:"id"`
 	Position Vector2 `json:"position"`
 	Velocity Vector2 `json:"velocity"`
 	Radius   float64 `json:"radius"`
@@ -123,6 +125,7 @@ type Shot struct {
 }
 
 type Asteroid struct {
+	ID       uint64  `json:"id"`
 	Position Vector2 `json:"position"`
 	Velocity Vector2 `json:"velocity"`
 	Radius   float64 `json:"radius"`
@@ -399,7 +402,9 @@ func (gs *GameServer) updateGame(dt float64) {
 		if player.Inputs.Shoot && player.ShootTimer <= 0 {
 			player.ShootTimer = PLAYER_SHOOT_COOLDOWN
 			forward := Vector2{X: 0, Y: 1}.Rotate(player.Rotation)
+			gs.nextEntityID++
 			shot := &Shot{
+				ID:       gs.nextEntityID,
 				Position: player.Position,
 				Velocity: forward.Multiply(PLAYER_SHOOT_SPEED),
 				Radius:   SHOT_RADIUS,
@@ -458,7 +463,9 @@ func (gs *GameServer) spawnAsteroid() {
 	kind := rand.Intn(ASTEROID_KINDS) + 1
 	radius := float64(ASTEROID_MIN_RADIUS * kind)
 
+	gs.nextEntityID++
 	asteroid := &Asteroid{
+		ID:       gs.nextEntityID,
 		Position: position,
 		Velocity: velocity,
 		Radius:   radius,
@@ -531,13 +538,16 @@ func (gs *GameServer) splitAsteroid(index int) {
 	velocity1 := asteroid.Velocity.Rotate(randomAngle).Multiply(1.2)
 	velocity2 := asteroid.Velocity.Rotate(-randomAngle).Multiply(1.2)
 
+	gs.nextEntityID += 2
 	asteroid1 := &Asteroid{
+		ID:       gs.nextEntityID - 1,
 		Position: asteroid.Position,
 		Velocity: velocity1,
 		Radius:   newRadius,
 	}
 
 	asteroid2 := &Asteroid{
+		ID:       gs.nextEntityID,
 		Position: asteroid.Position,
 		Velocity: velocity2,
 		Radius:   newRadius,
