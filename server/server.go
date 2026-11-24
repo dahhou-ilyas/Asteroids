@@ -71,7 +71,7 @@ type Player struct {
 	ShootTimer float64       `json:"-"`
 	Inputs     PlayerInputs  `json:"-"`
 	Connection net.Conn      `json:"-"`
-	Writer     *bufio.Writer `json:"-"`
+	Out        chan []byte   `json:"-"`
 	Reader     *bufio.Reader `json:"-"`
 }
 
@@ -107,6 +107,8 @@ type WelcomeMessage struct {
 
 type GameServer struct {
 	players       map[string]*Player
+	nextPlayerID  int
+	nextEntityID  uint64
 	gameState     *GameState
 	asteroidField *AsteroidField
 	mutex         sync.RWMutex
@@ -115,6 +117,7 @@ type GameServer struct {
 }
 
 type Shot struct {
+	ID       uint64  `json:"id"`
 	Position Vector2 `json:"position"`
 	Velocity Vector2 `json:"velocity"`
 	Radius   float64 `json:"radius"`
@@ -122,6 +125,7 @@ type Shot struct {
 }
 
 type Asteroid struct {
+	ID       uint64  `json:"id"`
 	Position Vector2 `json:"position"`
 	Velocity Vector2 `json:"velocity"`
 	Radius   float64 `json:"radius"`
@@ -220,18 +224,30 @@ func (gs *GameServer) sendMessage(conn net.Conn, msg Message) error {
 	return err
 }
 
+// sendMessageToPlayer ne bloque jamais : le message est déposé dans la file du joueur,
+// et si elle est pleine (client trop lent) il est ignoré pour ce joueur.
 func (gs *GameServer) sendMessageToPlayer(player *Player, msg Message) error {
 	data, err := json.Marshal(msg)
 	if err != nil {
 		return err
 	}
 
-	_, err = player.Writer.Write(append(data, '\n'))
-	if err != nil {
-		return err
+	select {
+	case player.Out <- append(data, '\n'):
+	default:
 	}
+	return nil
+}
 
-	return player.Writer.Flush()
+// writeLoop écrit sur la connexion, en dehors du verrou du jeu.
+func (gs *GameServer) writeLoop(player *Player) {
+	for data := range player.Out {
+		player.Connection.SetWriteDeadline(time.Now().Add(2 * time.Second))
+		if _, err := player.Connection.Write(data); err != nil {
+			player.Connection.Close()
+			return
+		}
+	}
 }
 
 func (gs *GameServer) handleConnection(conn net.Conn) {
@@ -249,10 +265,10 @@ func (gs *GameServer) handleConnection(conn net.Conn) {
 		return
 	}
 
-	// Créer nouveau joueur
-	playerID := fmt.Sprintf("player_%d", len(gs.players)+1)
+	// Créer nouveau joueur (compteur qui ne redescend jamais : pas d'ID en double)
+	gs.nextPlayerID++
+	playerID := fmt.Sprintf("player_%d", gs.nextPlayerID)
 	reader := bufio.NewReader(conn)
-	writer := bufio.NewWriter(conn)
 
 	player := &Player{
 		ID:         playerID,
@@ -264,9 +280,19 @@ func (gs *GameServer) handleConnection(conn net.Conn) {
 		Score:      0,
 		ShootTimer: 0,
 		Connection: conn,
-		Writer:     writer,
+		Out:        make(chan []byte, 8),
 		Reader:     reader,
 	}
+	go gs.writeLoop(player)
+
+	// Le message de bienvenue part en premier, avant tout état du jeu
+	gs.sendMessageToPlayer(player, Message{
+		Type: "welcome",
+		Data: WelcomeMessage{
+			PlayerID: playerID,
+			Status:   "connected",
+		},
+	})
 
 	// Positionner le deuxième joueur différemment
 	if len(gs.players) == 1 {
@@ -278,21 +304,6 @@ func (gs *GameServer) handleConnection(conn net.Conn) {
 	gs.mutex.Unlock()
 
 	log.Printf("Nouveau joueur connecté: %s (%s)", playerID, conn.RemoteAddr())
-
-	// Envoyer message de bienvenue
-	welcomeMsg := Message{
-		Type: "welcome",
-		Data: WelcomeMessage{
-			PlayerID: playerID,
-			Status:   "connected",
-		},
-	}
-
-	if err := gs.sendMessageToPlayer(player, welcomeMsg); err != nil {
-		log.Printf("Erreur envoi message bienvenue: %v", err)
-		gs.removePlayer(playerID)
-		return
-	}
 
 	// Écouter les messages du client
 	for {
@@ -318,9 +329,10 @@ func (gs *GameServer) handleConnection(conn net.Conn) {
 				continue
 			}
 
+			// Le joueur est celui de cette connexion, pas celui écrit dans le message
 			gs.mutex.Lock()
-			if player, exists := gs.players[inputMsg.PlayerID]; exists {
-				player.Inputs = inputMsg.Inputs
+			if p, exists := gs.players[playerID]; exists {
+				p.Inputs = inputMsg.Inputs
 			}
 			gs.mutex.Unlock()
 		}
@@ -333,6 +345,9 @@ func (gs *GameServer) handleConnection(conn net.Conn) {
 
 func (gs *GameServer) removePlayer(playerID string) {
 	gs.mutex.Lock()
+	if p, exists := gs.players[playerID]; exists {
+		close(p.Out) // arrête sa goroutine d'écriture
+	}
 	delete(gs.players, playerID)
 	gs.updatePlayersList()
 	gs.mutex.Unlock()
@@ -396,7 +411,9 @@ func (gs *GameServer) updateGame(dt float64) {
 		if player.Inputs.Shoot && player.ShootTimer <= 0 {
 			player.ShootTimer = PLAYER_SHOOT_COOLDOWN
 			forward := Vector2{X: 0, Y: 1}.Rotate(player.Rotation)
+			gs.nextEntityID++
 			shot := &Shot{
+				ID:       gs.nextEntityID,
 				Position: player.Position,
 				Velocity: forward.Multiply(PLAYER_SHOOT_SPEED),
 				Radius:   SHOT_RADIUS,
@@ -455,7 +472,9 @@ func (gs *GameServer) spawnAsteroid() {
 	kind := rand.Intn(ASTEROID_KINDS) + 1
 	radius := float64(ASTEROID_MIN_RADIUS * kind)
 
+	gs.nextEntityID++
 	asteroid := &Asteroid{
+		ID:       gs.nextEntityID,
 		Position: position,
 		Velocity: velocity,
 		Radius:   radius,
@@ -528,13 +547,16 @@ func (gs *GameServer) splitAsteroid(index int) {
 	velocity1 := asteroid.Velocity.Rotate(randomAngle).Multiply(1.2)
 	velocity2 := asteroid.Velocity.Rotate(-randomAngle).Multiply(1.2)
 
+	gs.nextEntityID += 2
 	asteroid1 := &Asteroid{
+		ID:       gs.nextEntityID - 1,
 		Position: asteroid.Position,
 		Velocity: velocity1,
 		Radius:   newRadius,
 	}
 
 	asteroid2 := &Asteroid{
+		ID:       gs.nextEntityID,
 		Position: asteroid.Position,
 		Velocity: velocity2,
 		Radius:   newRadius,
@@ -562,20 +584,12 @@ func (gs *GameServer) broadcastGameState() {
 		Data: gs.gameState,
 	}
 
-	// Créer la liste des joueurs à supprimer (connexions fermées)
-	var playersToRemove []string
+	// Envoi sans attente : les connexions mortes sont fermées par writeLoop
+	// puis nettoyées par handleConnection
 	for playerID, player := range gs.players {
-		err := gs.sendMessageToPlayer(player, gameStateMsg)
-		if err != nil {
+		if err := gs.sendMessageToPlayer(player, gameStateMsg); err != nil {
 			log.Printf("Erreur envoi à %s: %v", playerID, err)
-			playersToRemove = append(playersToRemove, playerID)
 		}
-	}
-
-	// Supprimer les joueurs déconnectés
-	for _, playerID := range playersToRemove {
-		delete(gs.players, playerID)
-		gs.updatePlayersList()
 	}
 }
 

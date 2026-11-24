@@ -258,12 +258,11 @@ def sync_player_shots(game_state, shots_by_id, drawable, updatable,player_id):
     """Synchronise les tirs avec l'état du serveur"""
     server_shots = game_state.get("shots", [])
     
-    #  ID unique pour chaque tir basé sur sa position et vélocité
     current_server_shots = set()
     
     for shot_data in server_shots:
-        # ID unique basé sur les propriétés du tir
-        shot_id = f"{shot_data['position']['x']:.1f}_{shot_data['position']['y']:.1f}_{shot_data['velocity']['x']:.1f}_{shot_data['velocity']['y']:.1f}_{shot_data['owner_id']}"
+        # ID stable attribué par le serveur (la position change à chaque état)
+        shot_id = shot_data["id"]
         current_server_shots.add(shot_id)
         
         # Si ce tir n'existe pas encore localement, le créer
@@ -313,7 +312,7 @@ def sync_asteroids_with_server_state(game_state, asteroids_by_id, drawable, upda
     
     # Créer ou mettre à jour les astéroïdes existants
     for asteroid_data in server_asteroids:
-        asteroid_id = f"{asteroid_data['position']['x']:.0f}_{asteroid_data['position']['y']:.0f}_{asteroid_data['radius']:.0f}_{asteroid_data['velocity']['x']:.1f}_{asteroid_data['velocity']['y']:.1f}"
+        asteroid_id = asteroid_data["id"]
         current_server_asteroids.add(asteroid_id)
         
         if asteroid_id not in asteroids_by_id:
