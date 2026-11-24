@@ -107,6 +107,7 @@ type WelcomeMessage struct {
 
 type GameServer struct {
 	players       map[string]*Player
+	nextPlayerID  int
 	gameState     *GameState
 	asteroidField *AsteroidField
 	mutex         sync.RWMutex
@@ -249,8 +250,9 @@ func (gs *GameServer) handleConnection(conn net.Conn) {
 		return
 	}
 
-	// Créer nouveau joueur
-	playerID := fmt.Sprintf("player_%d", len(gs.players)+1)
+	// Créer nouveau joueur (compteur qui ne redescend jamais : pas d'ID en double)
+	gs.nextPlayerID++
+	playerID := fmt.Sprintf("player_%d", gs.nextPlayerID)
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
 
@@ -318,9 +320,10 @@ func (gs *GameServer) handleConnection(conn net.Conn) {
 				continue
 			}
 
+			// Le joueur est celui de cette connexion, pas celui écrit dans le message
 			gs.mutex.Lock()
-			if player, exists := gs.players[inputMsg.PlayerID]; exists {
-				player.Inputs = inputMsg.Inputs
+			if p, exists := gs.players[playerID]; exists {
+				p.Inputs = inputMsg.Inputs
 			}
 			gs.mutex.Unlock()
 		}
